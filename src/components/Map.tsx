@@ -105,6 +105,13 @@ const Map: React.FC<MapProps> = ({
       properties.forEach(property => {
         const { lat, lng } = property.coordinates;
         
+        // Validate coordinates before creating marker
+        if (!lat || !lng || isNaN(lat) || isNaN(lng) || 
+            lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+          console.warn(`Invalid coordinates for property ${property.id}:`, { lat, lng });
+          return;
+        }
+        
         // Create custom icon based on property type
         const getIconColor = (type: string) => {
           switch (type) {
@@ -174,8 +181,27 @@ const Map: React.FC<MapProps> = ({
 
       // Fit map to show all markers if there are properties
       if (properties.length > 0) {
-        const group = new L.featureGroup(markersRef.current);
-        mapInstanceRef.current.fitBounds(group.getBounds().pad(0.1));
+        try {
+          const group = new L.featureGroup(markersRef.current);
+          const bounds = group.getBounds();
+          
+          // Check if bounds are valid
+          if (bounds.isValid && bounds.isValid()) {
+            mapInstanceRef.current.fitBounds(bounds.pad(0.1));
+          } else if (markersRef.current.length === 1) {
+            // For single marker, just center on it
+            const marker = markersRef.current[0];
+            const latlng = marker.getLatLng();
+            mapInstanceRef.current.setView([latlng.lat, latlng.lng], 15);
+          }
+        } catch (error) {
+          console.warn('Error fitting bounds:', error);
+          // Fallback to center on first property if bounds calculation fails
+          if (properties.length > 0) {
+            const firstProperty = properties[0];
+            mapInstanceRef.current.setView([firstProperty.coordinates.lat, firstProperty.coordinates.lng], 13);
+          }
+        }
       }
     };
 

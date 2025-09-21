@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Search as SearchIcon, MapPin, SlidersHorizontal, Grid, List } from 'lucide-react';
+import { Search as SearchIcon, MapPin, Grid, List, Star, Home } from 'lucide-react';
 import Layout from '../components/Layout/Layout';
 import PropertyCard from '../components/PropertyCard';
 import AdvancedSearch from '../components/AdvancedSearch';
@@ -15,9 +15,7 @@ const Search: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [filters, setFilters] = useState<SearchFiltersType>({});
-  const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'map'>('grid');
-  const [showMap, setShowMap] = useState(false);
   const navigate = useNavigate();
 
   // Initialize filters from URL params
