@@ -77,12 +77,11 @@ jobs:
 
       - name: Notify Telegram
         if: always()
+        env:
+          ST: ${{ job.status }}
+          SH: ${{ github.sha }}
+          RP: ${{ github.repository }}
+          RN: ${{ github.run_id }}
+          SU: ${{ github.server_url }}
         run: |
-          STATUS='${{ job.status }}'
-          MSG="Rollback <b>$STATUS</b>%0A%0A"
-          MSG="${MSG}<b>Repo:</b> atlasproject%0A"
-          MSG="${MSG}<b>Commit:</b> ${{ inputs.commit }}%0A"
-          MSG="${MSG}<b>Run:</b> <a href=\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\">${{ github.run_id }}</a>"
-          ssh -p "${{ secrets.KOSATLAS_VPS_PORT || 22 }}" \
-            "${{ secrets.KOSATLAS_VPS_USER }}@${{ secrets.KOSATLAS_VPS_HOST }}" \
-            "hermes send --to telegram:-1003792052859 '$MSG'"
+          ssh -p "${{ secrets.KOSATLAS_VPS_PORT || 22 }}"             "${{ secrets.KOSATLAS_VPS_USER }}@${{ secrets.KOSATLAS_VPS_HOST }}"             "printf '%s\n'               '[KosAtlas] Rollback: $ST'               ''               'Commit: $SH'               'Run: $SU/$RP/actions/runs/$RN'             | /home/meowlabs/.local/bin/hermes send --to telegram:-1003792052859"
