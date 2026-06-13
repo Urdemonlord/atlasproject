@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  MapPin, Star, Wifi, Car, Users, Phone, Mail, 
-  Calendar, CreditCard, ArrowLeft, Heart, Share2,
-  CheckCircle, Clock, Crown
+  MapPin, Star, Wifi, Car, Users, Calendar, CreditCard, ArrowLeft, Heart, Share2,
+  CheckCircle, Clock, Crown, ExternalLink
 } from 'lucide-react';
 import Layout from '../components/Layout/Layout';
 import Map from '../components/Map';
@@ -313,20 +312,25 @@ const PropertyDetail: React.FC = () => {
                 </div>
               </div>
 
-              {/* Contact Info */}
-              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                <h3 className="font-semibold text-gray-900 mb-3">Kontak Pemilik</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2 text-sm text-gray-600">
-                    <Phone className="w-4 h-4" />
-                    <span>+62 812-3456-7890</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-sm text-gray-600">
-                    <Mail className="w-4 h-4" />
-                    <span>owner@example.com</span>
-                  </div>
+              {/* Contact - Lihat di Mamikos */}
+              {property.url ? (
+                <a
+                  href={property.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full bg-green-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center justify-center space-x-2 mb-3"
+                >
+                  <ExternalLink className="w-5 h-5" />
+                  <span>Lihat di Mamikos</span>
+                </a>
+              ) : (
+                <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                  <h3 className="font-semibold text-gray-900 mb-3">Kontak Pemilik</h3>
+                  <p className="text-sm text-gray-600">
+                    Informasi kontak tidak tersedia saat ini.
+                  </p>
                 </div>
-              </div>
+              )}
 
               {/* Booking Button */}
               <button

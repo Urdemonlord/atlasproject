@@ -23,6 +23,7 @@ export interface Property {
   owner_id: string;
   title: string;
   description: string;
+  url?: string;
   address: {
     street: string;
     district: string;

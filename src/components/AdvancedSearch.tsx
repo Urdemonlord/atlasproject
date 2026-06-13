@@ -6,6 +6,7 @@ interface AdvancedSearchProps {
   onSearch: (query: string, filters: SearchFiltersType) => void;
   onFiltersChange: (filters: SearchFiltersType) => void;
   filters: SearchFiltersType;
+  initialQuery?: string;
   loading?: boolean;
 }
 
@@ -13,9 +14,10 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
   onSearch,
   onFiltersChange,
   filters,
+  initialQuery = '',
   loading = false
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -53,6 +55,10 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     'Pleburan',
     'Candisari'
   ];
+
+  useEffect(() => {
+    setSearchQuery(initialQuery);
+  }, [initialQuery]);
 
   useEffect(() => {
     if (searchQuery.length > 2) {

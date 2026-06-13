@@ -11,12 +11,33 @@ import Map from '../components/Map';
 import { useProperties } from '../hooks/useProperties';
 import { SearchFilters as SearchFiltersType } from '../types';
 
+type ViewMode = 'grid' | 'list' | 'map';
+
+const getDefaultViewMode = (params: URLSearchParams): ViewMode => {
+  const requestedView = params.get('view');
+  if (requestedView === 'grid' || requestedView === 'list' || requestedView === 'map') {
+    return requestedView;
+  }
+
+  const hasActiveSearch = Boolean(params.get('q')?.trim());
+  const hasActiveFilters = ['property_type', 'min_price', 'max_price', 'location', 'facilities'].some((key) => {
+    const value = params.get(key);
+    return Boolean(value && value.trim());
+  });
+
+  return hasActiveSearch || hasActiveFilters ? 'grid' : 'map';
+};
+
 const Search: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [filters, setFilters] = useState<SearchFiltersType>({});
-  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'map'>('grid');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => getDefaultViewMode(searchParams));
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setViewMode(getDefaultViewMode(searchParams));
+  }, [searchParams]);
 
   // Initialize filters from URL params
   useEffect(() => {
@@ -34,11 +55,39 @@ const Search: React.FC = () => {
     if (searchParams.get('location')) {
       initialFilters.location = searchParams.get('location')!;
     }
+    if (searchParams.get('facilities')) {
+      initialFilters.facilities = searchParams.get('facilities')!.split(',').filter(Boolean);
+    }
     
+    setSearchQuery(searchParams.get('q') || '');
     setFilters(initialFilters);
   }, [searchParams]);
 
-  const { properties, loading, error } = useProperties(filters);
+  const hasActiveSearch = Boolean(searchQuery.trim());
+  const hasActiveFilters = Object.values(filters).some((value) =>
+    value !== undefined && value !== '' && (Array.isArray(value) ? value.length > 0 : true)
+  );
+  const searchLimit = hasActiveSearch || hasActiveFilters ? 1000 : 240;
+
+  const { properties, total, loading, error } = useProperties(filters, {
+    limit: searchLimit,
+    query: searchQuery,
+  });
+
+  const defaultViewMode: ViewMode = hasActiveSearch || hasActiveFilters ? 'grid' : 'map';
+
+  const handleViewModeChange = (nextView: ViewMode) => {
+    setViewMode(nextView);
+
+    const newParams = new URLSearchParams(searchParams);
+    if (nextView === defaultViewMode) {
+      newParams.delete('view');
+    } else {
+      newParams.set('view', nextView);
+    }
+
+    setSearchParams(newParams);
+  };
 
   const handleSearch = (query: string, searchFilters: SearchFiltersType) => {
     setSearchQuery(query);
@@ -112,6 +161,7 @@ const Search: React.FC = () => {
             onSearch={handleSearch}
             onFiltersChange={handleFiltersChange}
             filters={filters}
+            initialQuery={searchQuery}
             loading={loading}
           />
 
@@ -123,7 +173,9 @@ const Search: React.FC = () => {
               </h1>
               {!loading && (
                 <p className="text-gray-600 mt-1">
-                  Ditemukan {properties.length} kos
+                  {hasActiveSearch || hasActiveFilters
+                    ? `Ditemukan ${properties.length} kos`
+                    : `Ditemukan ${total} kos${total > properties.length ? `, menampilkan ${properties.length}` : ''}`}
                 </p>
               )}
             </div>
@@ -131,7 +183,8 @@ const Search: React.FC = () => {
             {/* View Mode Toggle */}
             <div className="flex items-center space-x-2">
               <button
-                onClick={() => setViewMode('grid')}
+                onClick={() => handleViewModeChange('grid')}
+                aria-label="Tampilan grid"
                 className={`p-2 rounded-lg transition-colors ${
                   viewMode === 'grid' ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:text-gray-600'
                 }`}
@@ -139,7 +192,8 @@ const Search: React.FC = () => {
                 <Grid className="w-5 h-5" />
               </button>
               <button
-                onClick={() => setViewMode('list')}
+                onClick={() => handleViewModeChange('list')}
+                aria-label="Tampilan list"
                 className={`p-2 rounded-lg transition-colors ${
                   viewMode === 'list' ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:text-gray-600'
                 }`}
@@ -147,7 +201,8 @@ const Search: React.FC = () => {
                 <List className="w-5 h-5" />
               </button>
               <button
-                onClick={() => setViewMode('map')}
+                onClick={() => handleViewModeChange('map')}
+                aria-label="Tampilan peta"
                 className={`p-2 rounded-lg transition-colors ${
                   viewMode === 'map' ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:text-gray-600'
                 }`}

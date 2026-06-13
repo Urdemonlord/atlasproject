@@ -15,6 +15,43 @@ interface MapProps {
   className?: string;
 }
 
+const getSpreadCoordinates = (
+  coordinates: { lat: number; lng: number },
+  index: number,
+  total: number
+) => {
+  if (total <= 1) return coordinates;
+
+  const ring = Math.floor(index / 8);
+  const positionInRing = index % 8;
+  const angle = (positionInRing / 8) * Math.PI * 2;
+  const offset = 0.0012 * (ring + 1);
+
+  return {
+    lat: coordinates.lat + Math.sin(angle) * offset,
+    lng: coordinates.lng + Math.cos(angle) * offset,
+  };
+};
+
+const getPropertyTypeLabel = (type: string) => {
+  switch (type) {
+    case 'putra':
+      return 'Khusus Putra';
+    case 'putri':
+      return 'Khusus Putri';
+    default:
+      return 'Campur';
+  }
+};
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
 const Map: React.FC<MapProps> = ({
   center,
   zoom = 13,
@@ -102,81 +139,146 @@ const Map: React.FC<MapProps> = ({
       markersRef.current = [];
 
       // Add property markers
-      properties.forEach(property => {
-        const { lat, lng } = property.coordinates;
-        
-        // Validate coordinates before creating marker
-        if (!lat || !lng || isNaN(lat) || isNaN(lng) || 
-            lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-          console.warn(`Invalid coordinates for property ${property.id}:`, { lat, lng });
+      const coordinateGroups = new globalThis.Map<string, typeof properties>();
+      properties.forEach((property) => {
+        const key = `${property.coordinates.lat.toFixed(4)},${property.coordinates.lng.toFixed(4)}`;
+        const group = coordinateGroups.get(key) || [];
+        group.push(property);
+        coordinateGroups.set(key, group);
+      });
+
+      const getIconColor = (type: string) => {
+        switch (type) {
+          case 'putra': return '#3B82F6';
+          case 'putri': return '#EC4899';
+          case 'campur': return '#10B981';
+          default: return '#6B7280';
+        }
+      };
+
+      coordinateGroups.forEach((group) => {
+        const firstProperty = group[0];
+        const { lat, lng } = firstProperty.coordinates;
+
+        if (!lat || !lng || isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+          console.warn(`Invalid coordinates for property group ${firstProperty.id}:`, { lat, lng });
           return;
         }
-        
-        // Create custom icon based on property type
-        const getIconColor = (type: string) => {
-          switch (type) {
-            case 'putra': return '#3B82F6'; // Blue
-            case 'putri': return '#EC4899'; // Pink
-            case 'campur': return '#10B981'; // Green
-            default: return '#6B7280'; // Gray
-          }
-        };
 
-        const customIcon = L.divIcon({
-          className: 'custom-marker',
-          html: `
-            <div style="
-              background-color: ${getIconColor(property.property_type)};
-              width: 30px;
-              height: 30px;
-              border-radius: 50%;
-              border: 3px solid white;
-              box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: white;
-              font-weight: bold;
-              font-size: 12px;
-            ">
-              ${property.property_type === 'putra' ? 'P' : property.property_type === 'putri' ? 'W' : 'C'}
-            </div>
-          `,
-          iconSize: [30, 30],
-          iconAnchor: [15, 15]
-        });
-
-        const marker = L.marker([lat, lng], { icon: customIcon })
-          .addTo(mapInstanceRef.current!);
-
-        // Add popup
-        const popupContent = `
-          <div style="min-width: 200px;">
-            <img src="${property.images[0]}" alt="${property.title}" 
-                 style="width: 100%; height: 100px; object-fit: cover; border-radius: 8px; margin-bottom: 8px;">
-            <h3 style="margin: 0 0 8px 0; font-size: 14px; font-weight: bold; color: #1F2937;">
-              ${property.title}
-            </h3>
-            <p style="margin: 0 0 8px 0; font-size: 12px; color: #6B7280;">
-              ${property.property_type === 'putra' ? 'Khusus Putra' : 
-                property.property_type === 'putri' ? 'Khusus Putri' : 'Campur'}
-            </p>
-            <p style="margin: 0; font-size: 14px; font-weight: bold; color: #059669;">
-              Rp ${property.pricing.monthly_rent.toLocaleString('id-ID')}/bulan
-            </p>
-          </div>
-        `;
-
-        marker.bindPopup(popupContent);
-
-        // Add click handler
-        if (onPropertyClick) {
-          marker.on('click', () => {
-            onPropertyClick(property.id);
+        if (group.length >= 8) {
+          const clusterIcon = L.divIcon({
+            className: 'custom-marker custom-marker-cluster',
+            html: `
+              <div style="
+                background: radial-gradient(circle at 30% 30%, #60A5FA, #1D4ED8);
+                width: 40px;
+                height: 40px;
+                border-radius: 999px;
+                border: 3px solid white;
+                box-shadow: 0 8px 20px rgba(29, 78, 216, 0.35);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-weight: 800;
+                font-size: 12px;
+              ">
+                ${group.length}
+              </div>
+            `,
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
           });
+
+          const prices = group.map((item: any) => item.pricing.monthly_rent).filter((price: number) => price > 0);
+          const minPrice = prices.length ? Math.min(...prices) : 0;
+          const maxPrice = prices.length ? Math.max(...prices) : 0;
+          const previewItems = group.slice(0, 6).map((item: any) => `
+            <li style="margin-bottom: 6px; line-height: 1.4;">
+              <strong>${escapeHtml(item.title)}</strong><br />
+              <span style="color: #6B7280; font-size: 12px;">${getPropertyTypeLabel(item.property_type)} · Rp ${item.pricing.monthly_rent.toLocaleString('id-ID')}/bulan</span>
+            </li>
+          `).join('');
+
+          const clusterPopup = `
+            <div style="min-width: 240px; max-width: 280px;">
+              <h3 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 700; color: #1F2937;">
+                ${group.length} kos di area ini
+              </h3>
+              <p style="margin: 0 0 10px 0; font-size: 12px; color: #6B7280;">
+                ${minPrice > 0 ? `Harga ${minPrice.toLocaleString('id-ID')} - ${maxPrice.toLocaleString('id-ID')} / bulan` : 'Beberapa listing berbagi titik area yang sama'}
+              </p>
+              <ul style="padding-left: 18px; margin: 0;">
+                ${previewItems}
+              </ul>
+              ${group.length > 6 ? `<p style="margin: 10px 0 0 0; font-size: 12px; color: #2563EB; font-weight: 600;">+${group.length - 6} listing lainnya di titik ini</p>` : ''}
+            </div>
+          `;
+
+          const clusterMarker = L.marker([lat, lng], { icon: clusterIcon }).addTo(mapInstanceRef.current!);
+          clusterMarker.bindPopup(clusterPopup);
+          clusterMarker.on('click', () => {
+            mapInstanceRef.current?.setView([lat, lng], Math.max(mapInstanceRef.current.getZoom(), 14));
+          });
+          markersRef.current.push(clusterMarker);
+          return;
         }
 
-        markersRef.current.push(marker);
+        group.forEach((property, index) => {
+          const spreadCoordinates = getSpreadCoordinates({ lat, lng }, index, group.length);
+          const customIcon = L.divIcon({
+            className: 'custom-marker',
+            html: `
+              <div style="
+                background-color: ${getIconColor(property.property_type)};
+                width: 30px;
+                height: 30px;
+                border-radius: 50%;
+                border: 3px solid white;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-weight: bold;
+                font-size: 12px;
+              ">
+                ${property.property_type === 'putra' ? 'P' : property.property_type === 'putri' ? 'W' : 'C'}
+              </div>
+            `,
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+          });
+
+          const marker = L.marker([spreadCoordinates.lat, spreadCoordinates.lng], { icon: customIcon })
+            .addTo(mapInstanceRef.current!);
+
+          const popupContent = `
+            <div style="min-width: 200px;">
+              <img src="${property.images[0]}" alt="${escapeHtml(property.title)}"
+                   style="width: 100%; height: 100px; object-fit: cover; border-radius: 8px; margin-bottom: 8px;">
+              <h3 style="margin: 0 0 8px 0; font-size: 14px; font-weight: bold; color: #1F2937;">
+                ${escapeHtml(property.title)}
+              </h3>
+              <p style="margin: 0 0 8px 0; font-size: 12px; color: #6B7280;">
+                ${getPropertyTypeLabel(property.property_type)}
+              </p>
+              <p style="margin: 0; font-size: 14px; font-weight: bold; color: #059669;">
+                Rp ${property.pricing.monthly_rent.toLocaleString('id-ID')}/bulan
+              </p>
+            </div>
+          `;
+
+          marker.bindPopup(popupContent);
+
+          if (onPropertyClick) {
+            marker.on('click', () => {
+              onPropertyClick(property.id);
+            });
+          }
+
+          markersRef.current.push(marker);
+        });
       });
 
       // Fit map to show all markers if there are properties
