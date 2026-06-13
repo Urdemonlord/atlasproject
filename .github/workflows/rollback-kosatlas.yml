@@ -1,26 +1,27 @@
-name: Deploy KosAtlas VPS
+name: Rollback KosAtlas
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
-
-concurrency:
-  group: deploy-kosatlas-production
-  cancel-in-progress: true
+    inputs:
+      commit:
+        description: 'Commit SHA, tag, or branch to rollback to'
+        required: true
+        type: string
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  deploy:
+  rollback:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
-      - name: Checkout
+      - name: Checkout target commit
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.commit }}
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -78,10 +79,9 @@ jobs:
         if: always()
         run: |
           STATUS='${{ job.status }}'
-          MSG="Deploy <b>$STATUS</b>%0A%0A"
+          MSG="Rollback <b>$STATUS</b>%0A%0A"
           MSG="${MSG}<b>Repo:</b> atlasproject%0A"
-          MSG="${MSG}<b>Commit:</b> ${{ github.sha }}%0A"
-          MSG="${MSG}<b>Message:</b> $(echo '${{ github.event.head_commit.message || 'manual trigger' }}' | head -c 200 | sed 's/ /%20/g')%0A"
+          MSG="${MSG}<b>Commit:</b> ${{ inputs.commit }}%0A"
           MSG="${MSG}<b>Run:</b> <a href=\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\">${{ github.run_id }}</a>"
           ssh -p "${{ secrets.KOSATLAS_VPS_PORT || 22 }}" \
             "${{ secrets.KOSATLAS_VPS_USER }}@${{ secrets.KOSATLAS_VPS_HOST }}" \
