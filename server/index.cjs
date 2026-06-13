@@ -9,6 +9,256 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const CACHE_DIR = path.join(__dirname, '..', 'cache', 'photos');
 const DATA_DIR = path.join(__dirname, '..');
+const BASE_URL = 'https://kos.meowlabs.id';
+const SITE_NAME = 'KosAtlas';
+const DEFAULT_OG_IMAGE = `${BASE_URL}/og-cover.svg`;
+const DIST_PATH = path.join(DATA_DIR, 'dist');
+
+function escapeHtml(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function loadMamikosListings() {
+  const mamikosPath = path.join(DATA_DIR, 'mamikos_listings.json');
+  if (!fs.existsSync(mamikosPath)) return [];
+
+  const raw = JSON.parse(fs.readFileSync(mamikosPath, 'utf-8'));
+  if (Array.isArray(raw)) return raw;
+
+  const listKey = Object.keys(raw).find((key) => Array.isArray(raw[key]) && raw[key].length > 0);
+  return listKey ? raw[listKey] : [];
+}
+
+function findListingById(id) {
+  return loadMamikosListings().find((listing) => String(listing.id) === String(id) || String(listing._id) === String(id)) || null;
+}
+
+function propertyTypeLabel(type) {
+  if (type === 'putra') return 'khusus putra';
+  if (type === 'putri') return 'khusus putri';
+  return 'campur';
+}
+
+function buildPropertyDescription(listing) {
+  const area = listing.area || listing.city || 'Semarang';
+  const facilities = Array.isArray(listing.facilities) ? listing.facilities.slice(0, 5).join(', ') : '';
+  const price = listing.price_raw
+    ? String(listing.price_raw).replace(/\s*\/\s*bulan/i, '').trim()
+    : (listing.price ? `Rp${Number(listing.price).toLocaleString('id-ID')}` : 'Harga hubungi pemilik');
+  return [
+    `${listing.name} adalah kos ${propertyTypeLabel(listing.property_type)} di ${area}.`,
+    ` Harga mulai ${price}/bulan.`,
+    facilities ? ` Fasilitas: ${facilities}.` : '',
+    ' Cek lokasi dan detailnya di KosAtlas.',
+  ].join('');
+}
+
+function buildSearchDescription(query, location) {
+  if (query) {
+    return `Cari kos di Semarang untuk kata kunci ${query} lewat peta interaktif, bandingkan harga, fasilitas, dan lokasi di KosAtlas.`;
+  }
+
+  if (location) {
+    return `Temukan kos di area ${location} Semarang lewat peta interaktif KosAtlas. Bandingkan harga bulanan, fasilitas, dan lokasi lebih cepat.`;
+  }
+
+  return 'Jelajahi 1000+ kos di Semarang lewat peta interaktif. Bandingkan harga, fasilitas, dan area tanpa scroll listing tanpa akhir.';
+}
+
+function buildCanonicalUrl(req) {
+  const url = new URL(`${BASE_URL}${req.path}`);
+  const allowedParams = ['q', 'location'];
+  for (const key of allowedParams) {
+    if (typeof req.query[key] === 'string' && req.query[key].trim()) {
+      url.searchParams.set(key, req.query[key].trim());
+    }
+  }
+  return url.toString();
+}
+
+function buildSeoData(req) {
+  const pathName = req.path;
+  const canonical = buildCanonicalUrl(req);
+  const defaultDescription = 'KosAtlas adalah peta kos Semarang untuk eksplor area, banding harga, dan lanjut ke listing asli dengan lebih cepat.';
+  const base = {
+    title: 'KosAtlas | Peta Kos Semarang',
+    description: defaultDescription,
+    canonical,
+    robots: 'index,follow',
+    ogType: 'website',
+    image: DEFAULT_OG_IMAGE,
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: SITE_NAME,
+      url: BASE_URL,
+      description: defaultDescription,
+      inLanguage: 'id-ID',
+    },
+  };
+
+  if (pathName === '/') {
+    return {
+      ...base,
+      title: 'Peta Kos Semarang untuk Cari Kos Lebih Cepat | KosAtlas',
+      jsonLd: {
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        name: SITE_NAME,
+        url: BASE_URL,
+        description: defaultDescription,
+        inLanguage: 'id-ID',
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: `${BASE_URL}/search?q={search_term_string}`,
+          'query-input': 'required name=search_term_string',
+        },
+      },
+    };
+  }
+
+  if (pathName === '/search') {
+    const query = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const location = typeof req.query.location === 'string' ? req.query.location.trim() : '';
+    const title = query
+      ? `Cari Kos ${query} di Semarang lewat Peta | KosAtlas`
+      : location
+        ? `Kos ${location} Semarang lewat Peta | KosAtlas`
+        : 'Cari Kos Semarang lewat Peta Interaktif | KosAtlas';
+    const description = buildSearchDescription(query, location);
+
+    return {
+      ...base,
+      title,
+      description,
+      canonical,
+      jsonLd: {
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        name: title,
+        url: canonical,
+        description,
+        isPartOf: {
+          '@type': 'WebSite',
+          name: SITE_NAME,
+          url: BASE_URL,
+        },
+      },
+    };
+  }
+
+  if (pathName.startsWith('/property/')) {
+    const id = pathName.split('/').pop();
+    const listing = id ? findListingById(id) : null;
+
+    if (listing) {
+      const title = `${listing.name} di ${listing.area || listing.city || 'Semarang'} | KosAtlas`;
+      const description = buildPropertyDescription(listing);
+      return {
+        ...base,
+        title,
+        description,
+        canonical: `${BASE_URL}/property/${listing.id}`,
+        ogType: 'product',
+        image: `${BASE_URL}/api/photos/mamikos/${listing.id}`,
+        jsonLd: {
+          '@context': 'https://schema.org',
+          '@type': 'LodgingBusiness',
+          name: listing.name,
+          description,
+          url: `${BASE_URL}/property/${listing.id}`,
+          image: `${BASE_URL}/api/photos/mamikos/${listing.id}`,
+          address: {
+            '@type': 'PostalAddress',
+            streetAddress: listing.area_label || listing.area || '',
+            addressLocality: listing.area || '',
+            addressRegion: listing.city || 'Semarang',
+            addressCountry: 'ID',
+          },
+          geo: typeof listing.latitude === 'number' && typeof listing.longitude === 'number'
+            ? {
+                '@type': 'GeoCoordinates',
+                latitude: listing.latitude,
+                longitude: listing.longitude,
+              }
+            : undefined,
+          offers: {
+            '@type': 'Offer',
+            priceCurrency: 'IDR',
+            price: listing.price || 0,
+            availability: (listing.available_rooms || 0) > 0 ? 'https://schema.org/InStock' : 'https://schema.org/SoldOut',
+            url: `${BASE_URL}/property/${listing.id}`,
+          },
+        },
+      };
+    }
+  }
+
+  if (pathName === '/about') {
+    return {
+      ...base,
+      title: 'Tentang KosAtlas, Peta Kos Semarang',
+      description: 'Pelajari cara kerja KosAtlas sebagai platform discovery kos berbasis peta untuk area Semarang.',
+    };
+  }
+
+  if (pathName === '/help') {
+    return {
+      ...base,
+      title: 'Bantuan Cari Kos di Semarang | KosAtlas',
+      description: 'Panduan menggunakan KosAtlas untuk mencari kos di Semarang lewat peta, filter harga, dan detail listing.',
+    };
+  }
+
+  if (['/login', '/register', '/dashboard', '/bookings'].includes(pathName)) {
+    return {
+      ...base,
+      title: `${SITE_NAME}`,
+      robots: 'noindex,nofollow',
+      jsonLd: null,
+    };
+  }
+
+  return base;
+}
+
+function renderSeoHtml(template, seo) {
+  const safeJsonLd = seo.jsonLd ? JSON.stringify(seo.jsonLd).replace(/</g, '\\u003c') : '';
+
+  return template
+    .replace(/__SEO_TITLE__/g, escapeHtml(seo.title))
+    .replace(/__SEO_DESCRIPTION__/g, escapeHtml(seo.description))
+    .replace(/__SEO_CANONICAL__/g, escapeHtml(seo.canonical))
+    .replace(/__SEO_ROBOTS__/g, escapeHtml(seo.robots))
+    .replace(/__SEO_OG_TYPE__/g, escapeHtml(seo.ogType))
+    .replace(/__SEO_IMAGE__/g, escapeHtml(seo.image))
+    .replace(/__SEO_JSON_LD__/g, safeJsonLd);
+}
+
+function buildSitemapXml() {
+  const staticUrls = ['/', '/search', '/about', '/help'];
+  const listings = loadMamikosListings();
+  const urls = [
+    ...staticUrls.map((route) => ({
+      loc: `${BASE_URL}${route}`,
+      changefreq: route === '/' ? 'daily' : 'weekly',
+      priority: route === '/' ? '1.0' : '0.8',
+    })),
+    ...listings.map((listing) => ({
+      loc: `${BASE_URL}/property/${listing.id}`,
+      changefreq: 'weekly',
+      priority: '0.7',
+      lastmod: listing.updated_at || listing.created_at || undefined,
+    })),
+  ];
+
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((entry) => `  <url>\n    <loc>${escapeHtml(entry.loc)}</loc>${entry.lastmod ? `\n    <lastmod>${escapeHtml(new Date(entry.lastmod).toISOString())}</lastmod>` : ''}\n    <changefreq>${entry.changefreq}</changefreq>\n    <priority>${entry.priority}</priority>\n  </url>`).join('\n')}\n</urlset>`;
+}
 
 // Ensure cache dir exists
 fs.mkdirSync(CACHE_DIR, { recursive: true });
@@ -231,16 +481,28 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', cached_photos: cacheSize, port: PORT });
 });
 
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain');
+  res.send(`User-agent: *\nAllow: /\n\nSitemap: ${BASE_URL}/sitemap.xml\n`);
+});
+
+app.get('/sitemap.xml', (req, res) => {
+  res.type('application/xml');
+  res.send(buildSitemapXml());
+});
+
 // ──────────────────────────────────────────────
 // Static files (built frontend production)
 // ──────────────────────────────────────────────
-const distPath = path.join(DATA_DIR, 'dist');
-if (fs.existsSync(distPath)) {
-  app.use(express.static(distPath));
+if (fs.existsSync(DIST_PATH)) {
+  app.use(express.static(DIST_PATH, { index: false }));
   // SPA fallback for non-API routes
   app.use((req, res, next) => {
     if (!req.path.startsWith('/api')) {
-      res.sendFile(path.join(distPath, 'index.html'));
+      const indexPath = path.join(DIST_PATH, 'index.html');
+      const template = fs.readFileSync(indexPath, 'utf-8');
+      const seo = buildSeoData(req);
+      res.type('html').send(renderSeoHtml(template, seo));
     } else {
       next();
     }

@@ -1,8 +1,8 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import ErrorBoundary from './components/ErrorBoundary';
+import RouteSeo from './components/RouteSeo';
 
 // Pages
 import Home from './pages/Home';
@@ -21,6 +21,7 @@ function App() {
       <NotificationProvider>
         <AuthProvider>
           <Router>
+            <RouteSeo />
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/search" element={<Search />} />

@@ -1,0 +1,35 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" rx="32" fill="#020617"/>
+  <rect x="36" y="36" width="1128" height="558" rx="28" fill="url(#bg)" stroke="rgba(255,255,255,0.12)"/>
+  <g opacity="0.95">
+    <circle cx="936" cy="160" r="220" fill="#2563EB" fill-opacity="0.18"/>
+    <circle cx="1040" cy="446" r="188" fill="#10B981" fill-opacity="0.16"/>
+    <circle cx="284" cy="132" r="120" fill="#0EA5E9" fill-opacity="0.12"/>
+  </g>
+  <rect x="90" y="96" width="404" height="44" rx="22" fill="#172554"/>
+  <text x="120" y="125" fill="#BFDBFE" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">Peta kos Semarang</text>
+  <text x="90" y="238" fill="white" font-family="Inter, Arial, sans-serif" font-size="70" font-weight="800">KosAtlas</text>
+  <text x="90" y="316" fill="#E2E8F0" font-family="Inter, Arial, sans-serif" font-size="36" font-weight="600">Cari kos lewat peta, bukan scroll tanpa akhir.</text>
+  <text x="90" y="378" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="500">Eksplor area, banding harga, lalu lanjut ke sumber asli lebih cepat.</text>
+  <g>
+    <rect x="90" y="458" width="196" height="64" rx="18" fill="#2563EB"/>
+    <text x="126" y="499" fill="white" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700">1000+ listing</text>
+    <rect x="304" y="458" width="164" height="64" rx="18" fill="#0F172A" stroke="#334155"/>
+    <text x="340" y="499" fill="#F8FAFC" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700">Map-first</text>
+  </g>
+  <g>
+    <rect x="728" y="132" width="344" height="344" rx="32" fill="#0F172A" stroke="#334155"/>
+    <path d="M900 192C830.412 192 774 248.412 774 318C774 407.25 900 520 900 520C900 520 1026 407.25 1026 318C1026 248.412 969.588 192 900 192ZM900 366C873.49 366 852 344.51 852 318C852 291.49 873.49 270 900 270C926.51 270 948 291.49 948 318C948 344.51 926.51 366 900 366Z" fill="#38BDF8"/>
+    <circle cx="830" cy="250" r="9" fill="#22C55E"/>
+    <circle cx="982" cy="260" r="9" fill="#F59E0B"/>
+    <circle cx="1012" cy="356" r="9" fill="#F43F5E"/>
+    <circle cx="812" cy="404" r="9" fill="#A78BFA"/>
+    <circle cx="938" cy="442" r="9" fill="#2DD4BF"/>
+  </g>
+  <defs>
+    <linearGradient id="bg" x1="72" y1="44" x2="1126" y2="594" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+  </defs>
+</svg>

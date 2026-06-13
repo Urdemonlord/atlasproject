@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import Layout from '../components/Layout/Layout';
 import Map from '../components/Map';
+import SEOHead from '../components/SEOHead';
 import { useProperty } from '../hooks/useProperties';
 import { useAuth } from '../contexts/AuthContext';
 import { useBookings } from '../hooks/useBookings';
@@ -79,6 +80,40 @@ const PropertyDetail: React.FC = () => {
     }).format(price);
   };
 
+  const seoTitle = `${property.title} di ${property.address.district}, ${property.address.city}`;
+  const seoDescription = `${property.title} adalah kos ${property.property_type} di ${property.address.district}, ${property.address.city} dengan harga ${formatPrice(property.pricing.monthly_rent)}/bulan. Cek fasilitas, lokasi, dan ketersediaannya di KosAtlas.`;
+  const seoImage = property.images[0]?.startsWith('http')
+    ? property.images[0]
+    : `https://kos.meowlabs.id${property.images[0] || ''}`;
+  const propertyJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'LodgingBusiness',
+    name: property.title,
+    description: seoDescription,
+    url: `https://kos.meowlabs.id/property/${property.id}`,
+    image: property.images.map((image) => image.startsWith('http') ? image : `https://kos.meowlabs.id${image}`),
+    address: {
+      '@type': 'PostalAddress',
+      streetAddress: property.address.street,
+      addressLocality: property.address.district,
+      addressRegion: property.address.city,
+      addressCountry: 'ID',
+      postalCode: property.address.postal_code || undefined,
+    },
+    geo: {
+      '@type': 'GeoCoordinates',
+      latitude: property.coordinates.lat,
+      longitude: property.coordinates.lng,
+    },
+    offers: {
+      '@type': 'Offer',
+      priceCurrency: 'IDR',
+      price: property.pricing.monthly_rent,
+      availability: property.available_rooms > 0 ? 'https://schema.org/InStock' : 'https://schema.org/SoldOut',
+      url: `https://kos.meowlabs.id/property/${property.id}`,
+    },
+  };
+
   const getFacilityIcon = (facility: string) => {
     switch (facility) {
       case 'wifi':
@@ -134,6 +169,14 @@ const PropertyDetail: React.FC = () => {
 
   return (
     <Layout>
+      <SEOHead
+        title={seoTitle}
+        description={seoDescription}
+        canonicalPath={`/property/${property.id}`}
+        image={seoImage}
+        type="product"
+        jsonLd={propertyJsonLd}
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Back Button */}
         <button
