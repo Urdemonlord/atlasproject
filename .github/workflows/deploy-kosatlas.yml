@@ -10,6 +10,9 @@ concurrency:
   group: deploy-kosatlas-production
   cancel-in-progress: true
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -17,12 +20,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -42,9 +45,15 @@ jobs:
             ops/deploy-vps.sh
 
       - name: Start SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.KOSATLAS_VPS_SSH_KEY }}
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.KOSATLAS_VPS_SSH_KEY }}
+        run: |
+          eval "$(ssh-agent -s)"
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
+          install -m 600 /dev/null ~/.ssh/kosatlas_deploy
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/kosatlas_deploy
+          ssh-add ~/.ssh/kosatlas_deploy
 
       - name: Add VPS to known_hosts
         run: |
