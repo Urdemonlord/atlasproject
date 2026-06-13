@@ -37,8 +37,17 @@ pm2 startOrReload "$PROJECT_DIR/ops/pm2.kosatlas.config.cjs" --env production
 pm2 save >/dev/null
 
 echo "[5/6] Health check"
-HEALTH_JSON="$(curl -fsS http://127.0.0.1:3005/api/health)"
-echo "$HEALTH_JSON"
+for attempt in $(seq 1 20); do
+  if HEALTH_JSON="$(curl -fsS http://127.0.0.1:3005/api/health 2>/dev/null)"; then
+    echo "$HEALTH_JSON"
+    break
+  fi
+  if [ "$attempt" -eq 20 ]; then
+    echo "Health check failed after $attempt attempts" >&2
+    exit 7
+  fi
+  sleep 2
+done
 
 echo "[6/6] Done"
 rm -f "$ARTIFACT_PATH"
