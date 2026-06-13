@@ -51,6 +51,7 @@ jobs:
           eval "$(ssh-agent -s)"
           echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
           echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
+          mkdir -p ~/.ssh
           install -m 600 /dev/null ~/.ssh/kosatlas_deploy
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/kosatlas_deploy
           ssh-add ~/.ssh/kosatlas_deploy
