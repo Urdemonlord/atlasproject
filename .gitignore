@@ -23,3 +23,46 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Local runtime and scratch artifacts
+cache/
+*.crt
+*.key
+*.nginx
+
+# One-off scraping / enrichment outputs
+*_progress.json
+*_contacts.json
+*_data.json
+*_phones.json
+scraped_photos.json
+phone_matches.json
+
+# Local scraper/debug scripts and captures
+check_*.py
+clean_*.py
+fetch_*.py
+login_*.py
+match_*.py
+merge_*.py
+sample_*.py
+scrape_*.py
+test_scrape.py
+test_searchgraph.py
+test_smartscraper.py
+test_ldjson.py
+sudo_setup.py
+setup-sudo.sh
+
+# Mamikos investigation artifacts
+mamikos_*.png
+mamikos_*.html
+mamikos_*.js
+mamikos_*.py
+mamikos_*.json
+!mamikos_listings.json
+
+# Local backend experiment directory
+server/node_modules/
+server/package-lock.json
+server/package.json
