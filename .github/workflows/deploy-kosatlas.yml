@@ -1,0 +1,67 @@
+name: Deploy KosAtlas VPS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-kosatlas-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Package release artifact
+        run: |
+          tar -czf kosatlas-release.tgz \
+            dist \
+            package.json \
+            package-lock.json \
+            server/index.cjs \
+            ops/pm2.kosatlas.config.cjs \
+            ops/deploy-vps.sh
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.KOSATLAS_VPS_SSH_KEY }}
+
+      - name: Add VPS to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "${{ secrets.KOSATLAS_VPS_PORT || 22 }}" -H "${{ secrets.KOSATLAS_VPS_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Upload artifact
+        run: |
+          scp -P "${{ secrets.KOSATLAS_VPS_PORT || 22 }}" \
+            kosatlas-release.tgz \
+            "${{ secrets.KOSATLAS_VPS_USER }}@${{ secrets.KOSATLAS_VPS_HOST }}:/tmp/kosatlas-release.tgz"
+
+      - name: Run remote deploy
+        run: |
+          ssh -p "${{ secrets.KOSATLAS_VPS_PORT || 22 }}" \
+            "${{ secrets.KOSATLAS_VPS_USER }}@${{ secrets.KOSATLAS_VPS_HOST }}" \
+            'rm -rf /tmp/kosatlas-bootstrap && mkdir -p /tmp/kosatlas-bootstrap && tar -xzf /tmp/kosatlas-release.tgz -C /tmp/kosatlas-bootstrap ops/deploy-vps.sh && bash /tmp/kosatlas-bootstrap/ops/deploy-vps.sh /tmp/kosatlas-release.tgz'
