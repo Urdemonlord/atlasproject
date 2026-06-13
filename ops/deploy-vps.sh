@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+export PATH="/home/meowlabs/.local/bin:/home/meowlabs/.hermes/node/bin:$PATH"
+
 PROJECT_DIR="/home/meowlabs/atlasproject"
 ARTIFACT_PATH="${1:-/tmp/kosatlas-release.tgz}"
 TMP_DIR="$(mktemp -d /tmp/kosatlas-deploy.XXXXXX)"
